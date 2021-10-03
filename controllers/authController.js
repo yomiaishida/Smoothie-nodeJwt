@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const jwt = require("jsonwebtoken");
 
 // handle errors
 const handleErrors = (err) => {
@@ -10,7 +11,7 @@ const handleErrors = (err) => {
     errors.email = "Email already taken";
   }
 
-  // valition errors
+  // validation errors
   if (err.message.includes("user validation failed")) {
     console.log(err);
     Object.values(err.errors).forEach(({ properties }) => {
@@ -19,6 +20,13 @@ const handleErrors = (err) => {
   }
 
   return errors;
+};
+
+const maxAge = 3 * 24 * 60 * 60;
+const createToken = (id) => {
+  return jwt.sign({ id }, "net ninja secret", {
+    expiresIn: maxAge,
+  });
 };
 
 module.exports.signup_get = (req, res) => {
@@ -33,7 +41,9 @@ module.exports.signup_post = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.create({ email, password });
-    res.status(201).json(user);
+    const token = createToken(user._id);
+    res.cookie("jwt", token, { httpOnly: true, maxAge: maxAge * 1000 });
+    res.status(201).json({ user: user._id });
   } catch (err) {
     const errors = handleErrors(err);
     res.status(400).json({ errors });
